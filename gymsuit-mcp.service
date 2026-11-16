@@ -1,0 +1,16 @@
+[Unit]
+Description=GymSuit MCP server
+After=network.target
+
+[Service]
+Type=simple
+# Adjust User and paths to the server layout.
+User=gymsuit
+WorkingDirectory=/opt/gymsuit-mcp
+EnvironmentFile=/opt/gymsuit-mcp/.env
+ExecStart=/opt/gymsuit-mcp/venv/bin/python -m gymsuit_mcp
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

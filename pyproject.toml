@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gymsuit-mcp"
+version = "0.1.0"
+description = "GymSuit MCP server: log food into GymSuit from any MCP client, with per-user OAuth login."
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp==4.2.0",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "cryptography>=42",
+    "itsdangerous>=2.2",
+    "aiosqlite>=0.20",
+    "starlette>=0.37",
+]
+
+[project.scripts]
+gymsuit-mcp = "gymsuit_mcp.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
