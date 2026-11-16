@@ -43,7 +43,7 @@ tool argument.
 ```bash
 git clone https://github.com/zeezaglobal/gymsuit-mcp.git
 cd gymsuit-mcp
-python3 -m venv venv && venv/bin/pip install -r requirements.txt
+python3 -m venv venv && venv/bin/pip install .   # installs the package + its deps
 cp .env.example .env   # then fill in PUBLIC_URL + MCP_SECRET_KEY
 venv/bin/python -m gymsuit_mcp
 ```
@@ -88,7 +88,7 @@ the `resource` is `https://mcp.gymsuit.app/mcp`.
 ## Development
 
 ```bash
-python3 -m venv venv && venv/bin/pip install -r requirements.txt
+python3 -m venv venv && venv/bin/pip install -e . -r requirements.txt
 venv/bin/python -m pytest tests/ -q
 ```
 
