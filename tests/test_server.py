@@ -312,3 +312,71 @@ def test_mcp_tools_end_to_end(app_client, stub):
     )
     assert resp.status_code == 200, resp.text
     assert len(state.entries) == 0
+
+
+def test_mcp_workout_tools(app_client, stub):
+    state, _ = stub
+    tokens, _, _ = _get_tokens(app_client)
+    access = tokens["access_token"]
+
+    resp = _mcp_call(
+        app_client, access, None, "initialize",
+        {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}, 1,
+    )
+    assert resp.status_code == 200, resp.text
+    session_id = resp.headers.get("mcp-session-id")
+    _mcp_call(app_client, access, session_id, "notifications/initialized", {}, 2)
+
+    # Strength: "2 sets of bench press, 30 kg, 4 reps".
+    resp = _mcp_call(
+        app_client, access, session_id, "tools/call",
+        {"name": "log_workout", "arguments": {
+            "title": "Bench Press", "type": "STRENGTH", "sets": 2, "reps": 4,
+            "weight_kg": 30, "record_date": "2026-11-16"}}, 3,
+    )
+    assert resp.status_code == 200, resp.text
+    logged = json.loads(_parse_mcp(resp)["result"]["content"][0]["text"])
+    assert logged["total_reps"] == 8
+    assert logged["total_volume_kg"] == 240
+    assert logged["calories_burned"] and logged["calories_burned"] > 0
+    assert len(state.workouts) == 1
+    assert state.workouts[0]["setCount"] == 2
+    assert state.workouts[0]["totalVolumeKg"] == 240
+    strength_id = logged["external_id"]
+
+    # Cardio: a 30-minute run with distance.
+    resp = _mcp_call(
+        app_client, access, session_id, "tools/call",
+        {"name": "log_workout", "arguments": {
+            "title": "Running", "type": "CARDIO", "duration_minutes": 30, "distance_km": 5}}, 4,
+    )
+    assert resp.status_code == 200, resp.text
+    cardio = json.loads(_parse_mcp(resp)["result"]["content"][0]["text"])
+    assert "5 km" in cardio["title"]
+    assert cardio["duration_minutes"] == 30
+    assert len(state.workouts) == 2
+
+    # Missing required fields are rejected.
+    resp = _mcp_call(
+        app_client, access, session_id, "tools/call",
+        {"name": "log_workout", "arguments": {"title": "Squat", "type": "STRENGTH"}}, 5,
+    )
+    assert "error" in _parse_mcp(resp)["result"].get("content", [{}])[0].get("text", "").lower() \
+        or _parse_mcp(resp).get("result", {}).get("isError")
+
+    # List shows both.
+    resp = _mcp_call(
+        app_client, access, session_id, "tools/call",
+        {"name": "get_workouts", "arguments": {"days": 7}}, 6,
+    )
+    assert resp.status_code == 200, resp.text
+    workouts = json.loads(_parse_mcp(resp)["result"]["content"][0]["text"])
+    assert len(workouts) == 2
+
+    # Delete the strength one.
+    resp = _mcp_call(
+        app_client, access, session_id, "tools/call",
+        {"name": "delete_workout_entry", "arguments": {"external_id": strength_id}}, 7,
+    )
+    assert resp.status_code == 200, resp.text
+    assert len(state.workouts) == 1

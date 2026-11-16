@@ -15,11 +15,15 @@ the existing mobile OTP login and calls the existing food API.
 | `log_food` | Log one meal with full nutrition: `meal` (BREAKFAST/LUNCH/DINNER/SNACK), `dish_name`, `calories`, `protein_g`, `carbs_g`, `fat_g`, optional `record_date` (YYYY-MM-DD, default today) and `photo_base64`. Returns the `external_id` for corrections. |
 | `get_eating_score` | Eating-habit score 0–100 from food logged over the trailing `days` (default 7, max 30), vs `calorie_target_kcal` (default 2000). |
 | `delete_food_entry` | Delete one entry by `external_id` (the one `log_food` returned). |
+| `log_workout` | Log one workout. STRENGTH: `title` (e.g. "Bench Press"), `sets`, `reps` (per set), optional `weight_kg`. CARDIO: `title` (the activity — running, cycling, …), `duration_minutes`, optional `distance_km`. Calories are estimated from the activity and the user's weight unless `calories_burned` is given. Returns the `external_id` and calories burned. |
+| `get_workouts` | List workouts logged over the trailing `days` (default 30, max 90). |
+| `delete_workout_entry` | Delete one workout by `external_id` (the one `log_workout` returned). |
 | `whoami` | Show which GymSuit account the current login belongs to. |
 
-Logged entries appear in the GymSuit app's food log, the eating-habit score
-on the meals page, and the trainer progress page. Entries are tagged
-`mcp-<id>` so they never collide with entries the app itself syncs.
+Logged food appears in the GymSuit app's food log, the eating-habit score on
+the meals page, and the trainer progress page; logged workouts appear in the
+app's workout log and the trainer progress page. Entries are tagged `mcp-<id>`
+so they never collide with entries the app itself syncs.
 
 ## How login works
 

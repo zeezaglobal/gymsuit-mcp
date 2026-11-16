@@ -159,6 +159,126 @@ def create_mcp_server(settings: Settings, store: Store, gymsuit: GymSuitClient) 
         return {"deleted": external_id}
 
     @mcp.tool(
+        description=(
+            "Log one workout into the signed-in user's GymSuit workout log. "
+            "Two kinds: STRENGTH (an exercise with sets) needs title (e.g. "
+            "'Bench Press'), sets, and reps (reps per set); pass weight_kg to "
+            "record the load. CARDIO (running, cycling, swimming, walking, "
+            "rowing, ...) needs title (the activity) and duration_minutes; pass "
+            "distance_km if known. Calorie burn is estimated automatically from "
+            "the activity and the user's body weight unless you pass "
+            "calories_burned. record_date is YYYY-MM-DD (default today). The "
+            "workout appears in the GymSuit app's workout log and trainer "
+            "progress page. Returns the external_id (for delete_workout_entry) "
+            "and the calories burned."
+        )
+    )
+    async def log_workout(
+        title: str,
+        type: Literal["STRENGTH", "CARDIO"] = "STRENGTH",
+        sets: int | None = None,
+        reps: int | None = None,
+        weight_kg: float | None = None,
+        duration_minutes: int | None = None,
+        distance_km: float | None = None,
+        record_date: str | None = None,
+        calories_burned: float | None = None,
+    ) -> dict:
+        email = _require_email()
+        title = (title or "").strip()
+        if not title:
+            raise ValueError("title is required (e.g. 'Bench Press', 'Running')")
+        if record_date is None:
+            record_date = datetime.date.today().isoformat()
+        elif not re.fullmatch(r"\d{4}-\d{2}-\d{2}", record_date):
+            raise ValueError("record_date must be YYYY-MM-DD")
+
+        set_count = total_reps = total_volume = None
+        display_title = title
+        if type == "STRENGTH":
+            if sets is None or sets <= 0:
+                raise ValueError("strength workouts need sets >= 1")
+            if reps is None or reps <= 0:
+                raise ValueError("strength workouts need reps >= 1 (reps per set)")
+            set_count = sets
+            total_reps = sets * reps
+            if weight_kg is not None and weight_kg > 0:
+                total_volume = sets * reps * weight_kg
+            if duration_minutes is None:
+                duration_minutes = max(sets * 3, 1)  # ~3 min per set incl. rest
+        else:  # CARDIO
+            if duration_minutes is None or duration_minutes <= 0:
+                raise ValueError("cardio workouts need duration_minutes >= 1")
+            if distance_km is not None and distance_km > 0:
+                display_title = f"{title} · {distance_km:g} km"
+
+        entry: dict = {
+            "externalId": f"mcp-{uuid.uuid4().hex[:20]}",
+            "title": display_title,
+            "startTime": f"{record_date}T12:00:00",
+            "durationMinutes": duration_minutes,
+            "setCount": set_count,
+            "totalReps": total_reps,
+            "totalVolumeKg": total_volume,
+            "sourceDevice": "MCP",
+        }
+        if calories_burned is not None and calories_burned > 0:
+            entry["caloriesBurned"] = calories_burned
+
+        async def _sync(access_token: str) -> list:
+            return await gymsuit.sync_workout(access_token, [entry])
+
+        saved = await _with_gymsuit(settings, store, gymsuit, email, _sync)
+        record = saved[0] if saved else {}
+        return {
+            "external_id": entry["externalId"],
+            "title": display_title,
+            "type": type,
+            "record_date": record_date,
+            "sets": set_count,
+            "reps_per_set": reps if type == "STRENGTH" else None,
+            "total_reps": total_reps,
+            "total_volume_kg": total_volume,
+            "duration_minutes": duration_minutes,
+            "calories_burned": record.get("caloriesBurned"),
+        }
+
+    @mcp.tool(
+        description=(
+            "List the signed-in user's workouts logged over the trailing days "
+            "(default 30, max 90), newest first, with calories, sets/reps and "
+            "duration."
+        )
+    )
+    async def get_workouts(days: int = 30) -> list:
+        email = _require_email()
+        if not 1 <= days <= 90:
+            raise ValueError("days must be between 1 and 90")
+        from_date = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+
+        async def _list(access_token: str) -> list:
+            return await gymsuit.get_workouts(access_token, from_date)
+
+        return await _with_gymsuit(settings, store, gymsuit, email, _list)
+
+    @mcp.tool(
+        description=(
+            "Delete one workout the caller logged through this server, by the "
+            "external_id returned from log_workout."
+        )
+    )
+    async def delete_workout_entry(external_id: str) -> dict:
+        email = _require_email()
+        if not external_id:
+            raise ValueError("external_id is required")
+
+        async def _delete(access_token: str) -> None:
+            await gymsuit.delete_workout(access_token, external_id)
+
+        await _with_gymsuit(settings, store, gymsuit, email, _delete)
+        return {"deleted": external_id}
+
+    @mcp.tool(
         description="Show who the current MCP login belongs to (GymSuit account)."
     )
     async def whoami() -> dict:

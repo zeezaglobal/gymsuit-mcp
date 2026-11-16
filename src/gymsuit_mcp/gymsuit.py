@@ -90,3 +90,19 @@ class GymSuitClient:
 
     async def delete_food(self, access_token: str, external_id: str) -> None:
         await self._request("DELETE", f"/api/mobile/food/{external_id}", token=access_token)
+
+    async def sync_workout(self, access_token: str, entries: list[dict]) -> list:
+        result = await self._request(
+            "POST", "/api/mobile/workout/sync", token=access_token, json={"entries": entries}
+        )
+        return result if isinstance(result, list) else []
+
+    async def get_workouts(self, access_token: str, from_date: str | None = None) -> list:
+        params = {"from": from_date} if from_date else None
+        result = await self._request(
+            "GET", "/api/mobile/workout", token=access_token, params=params
+        )
+        return result if isinstance(result, list) else []
+
+    async def delete_workout(self, access_token: str, external_id: str) -> None:
+        await self._request("DELETE", f"/api/mobile/workout/{external_id}", token=access_token)
