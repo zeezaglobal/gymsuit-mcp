@@ -99,6 +99,7 @@ code exchange → refresh rotation → MCP `initialize` → `tools/list` →
 
 ## Status
 
-v0.1.0. Tested end to end against a stub of the GymSuit API. Live check
-against the real backend (real OTP + real food sync) still to do after
-first deploy.
+v0.1.0. Deployed at `https://mcp.gymsuit.app` and live-verified end to end
+against the real GymSuit backend: the full OAuth flow (email + 6-digit code),
+then `whoami` → `log_food` → `get_eating_score` → `delete_food_entry` through
+the public HTTPS endpoint. Also covered by the stub test suite in `tests/`.
