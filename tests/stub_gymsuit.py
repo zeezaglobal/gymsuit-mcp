@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 
@@ -100,7 +100,9 @@ def create_stub_app(state: StubState) -> Starlette:
             return JSONResponse({"message": "Unauthorized"}, status_code=401)
         external_id = request.path_params["external_id"]
         state.entries = [e for e in state.entries if e["externalId"] != external_id]
-        return JSONResponse(status_code=204, content=None)
+        # Plain Response: JSONResponse renders None as b"null", which corrupts
+        # the keep-alive connection on a 204.
+        return Response(status_code=204)
 
     async def sync_workout(request: Request) -> JSONResponse:
         if not _auth_ok(request):
@@ -129,7 +131,9 @@ def create_stub_app(state: StubState) -> Starlette:
             return JSONResponse({"message": "Unauthorized"}, status_code=401)
         external_id = request.path_params["external_id"]
         state.workouts = [w for w in state.workouts if w["externalId"] != external_id]
-        return JSONResponse(status_code=204, content=None)
+        # Plain Response: JSONResponse renders None as b"null", which corrupts
+        # the keep-alive connection on a 204.
+        return Response(status_code=204)
 
     async def get_state(request: Request) -> JSONResponse:
         return JSONResponse(
